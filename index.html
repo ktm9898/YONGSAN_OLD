@@ -11,14 +11,14 @@
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: 'Pretendard', sans-serif; background: #f8f9fa; overflow: hidden; }
         #map { width: 100%; height: 100vh; position: relative; }
 
-        /* 정보창 디자인 (16번 캡처와 동일한 너비감으로 복구) */
+        /* 정보창 디자인 (기존 요청하신 스타일로 완전 통일) */
         .iw-container { 
             padding: 12px; 
-            width: 220px; /* 콘텐츠 너비를 220px로 설정 */
+            width: 220px; 
             background: white; 
             border-radius: 12px; 
             box-shadow: 0 4px 20px rgba(0,0,0,0.12);
-            /* box-sizing: border-box를 삭제하여 패딩 24px가 바깥으로 추가되게 함 (실제 총 너비 244px) */
+            border: 1px solid #f0f0f0;
         }
 
         /* 1단계: 리스트 보기 스타일 */
@@ -37,22 +37,25 @@
         .iw-list-item-badge { font-size: 10px; padding: 2px 6px; border-radius: 10px; background: #eee; color: #888; }
         .badge-visited { background: #e1f9f0; color: #10b981; }
 
-        /* 2단계: 상세 보기 스타일 */
-        .iw-header { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
+        /* 2단계: 상세 보기 스타일 (기존 디자인 복사) */
+        .iw-header { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 2px; }
         .btn-back { 
-            background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 4px; padding: 3px 7px; 
-            font-size: 10px; cursor: pointer; color: #4b5563; font-weight: 700;
+            background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 4px; padding: 2px 6px; 
+            font-size: 9px; cursor: pointer; color: #4b5563; font-weight: 700;
             white-space: nowrap;
         }
-        .iw-title { font-size: 15px; font-weight: 700; color: #111; display: block; line-height: 1.3; }
+        .iw-title { font-size: 15px; font-weight: 700; color: #111; margin-bottom: 2px; display: block; }
         .iw-category { font-size: 11px; color: #2563eb; font-weight: 600; margin-bottom: 4px; display: block; }
         .iw-address { font-size: 11px; color: #71717a; margin-bottom: 12px; line-height: 1.4; display: block; }
+        
         .iw-btn-group { display: flex; gap: 6px; }
         .iw-btn {
-            flex: 1; text-align: center; color: white; padding: 8px 0;
+            flex: 1; text-align: center; color: white; padding: 7px 0;
             text-decoration: none; font-size: 10.5px; border-radius: 6px;
-            font-weight: 600; cursor: pointer; border: none;
+            font-weight: 600; cursor: pointer; border: none; transition: opacity 0.2s;
+            white-space: nowrap;
         }
+        .iw-btn:active { opacity: 0.8; }
         .btn-visit { background-color: #3b82f6; } 
         .btn-cancel { background-color: #f59e0b; } 
         .btn-naver { background-color: #03c75a; } 
@@ -76,7 +79,7 @@
 
     <div id="loading-screen">
         <div style="width:32px; height:32px; border:3px solid #f3f3f3; border-top:3px solid #3b82f6; border-radius:50%; animation:spin 1s linear infinite; margin-bottom:12px;"></div>
-        <div id="loading-text" style="font-size:14px; font-weight:600;">기존 점포 데이터를 불러오는 중...</div>
+        <div id="loading-text" style="font-size:14px; font-weight:600;">데이터를 불러오는 중...</div>
     </div>
 
     <div id="toast">저장 중...</div>
