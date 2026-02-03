@@ -88,7 +88,7 @@
     <div id="map"></div>
 
     <script>
-        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzS_CN-ZzcRiXvjyZjYS_cH2ohRo6akKRpMBC0aJAqgYnNb36__D85NP9L0S8QwY6yC/exec'; 
+        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbsS_CN-ZzcRiXvjyZjYS_cH2ohRo6akKRpMBC0aJAqgYnNb36__D85NP9L0S8QwY6yC/exec'; 
 
         var map;
         var markerClustering;
@@ -249,10 +249,10 @@
 
         function getIconHtml(isVisited, count) {
             const color = isVisited ? VISITED_COLOR : DEFAULT_COLOR;
-            // 중복 마커 개수 배지 추가 (2개 이상일 때만 표시)
+            // 중복 마커 개수 배지: 흰색 배경에 검은색 글씨로 수정
             const badgeHtml = (count && count > 1) ? `
-                <circle cx="26" cy="6" r="7" fill="#333" stroke="white" stroke-width="1.5"/>
-                <text x="26" y="9" font-size="8" font-weight="900" text-anchor="middle" fill="white" font-family="Pretendard">${count}</text>
+                <circle cx="26" cy="6" r="7" fill="white" stroke="#333" stroke-width="1.5"/>
+                <text x="26" y="9" font-size="8" font-weight="900" text-anchor="middle" fill="#333" font-family="Pretendard">${count}</text>
             ` : '';
 
             return `<div style="width:36px;height:36px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
