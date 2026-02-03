@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>용산구 기존 점포 지도</title>
+    <title>용산구 창업 점포 지도</title>
     <!-- 네이버 지도 API & 클러스터링 라이브러리 -->
     <script type="text/javascript" src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=u5mtazxcnw"></script>
     <script type="text/javascript" src="https://navermaps.github.io/maps.js.ncp/docs/js/marker-clusterer.js"></script>
@@ -11,7 +11,7 @@
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: 'Pretendard', sans-serif; background: #f8f9fa; overflow: hidden; }
         #map { width: 100%; height: 100vh; position: relative; }
 
-        /* 정보창 디자인 (기존 요청하신 스타일로 완전 통일) */
+        /* 정보창 디자인 (기존 점포 지도와 동일하게 통일) */
         .iw-container { 
             padding: 12px; 
             width: 220px; 
@@ -30,6 +30,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            transition: background 0.2s;
         }
         .iw-list-item:last-child { border-bottom: none; }
         .iw-list-item:hover { background: #f0f7ff; }
@@ -37,16 +38,16 @@
         .iw-list-item-badge { font-size: 10px; padding: 2px 6px; border-radius: 10px; background: #eee; color: #888; }
         .badge-visited { background: #e1f9f0; color: #10b981; }
 
-        /* 2단계: 상세 보기 스타일 (기존 디자인 복사 및 미세 조정) */
-        .iw-header { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 0px; } /* 마진 제거 */
+        /* 2단계: 상세 보기 스타일 (조밀한 간격 유지) */
+        .iw-header { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 0px; }
         .btn-back { 
             background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 4px; padding: 2px 6px; 
             font-size: 9px; cursor: pointer; color: #4b5563; font-weight: 700;
             white-space: nowrap;
         }
-        .iw-title { font-size: 15px; font-weight: 700; color: #111; margin-bottom: 2px; display: block; line-height: 1.3; } /* 마진 제거 및 줄간격 조정 */
+        .iw-title { font-size: 15px; font-weight: 700; color: #111; margin-bottom: 2px; display: block; line-height: 1.3; }
         .iw-category { font-size: 11px; color: #2563eb; font-weight: 600; margin-bottom: 4px; display: block; }
-        .iw-address { font-size: 11px; color: #71717a; margin-bottom: 8px; line-height: 1.4; display: block; }
+        .iw-address { font-size: 11px; color: #71717a; margin-bottom: 12px; line-height: 1.4; display: block; }
         
         .iw-btn-group { display: flex; gap: 6px; }
         .iw-btn {
@@ -79,7 +80,7 @@
 
     <div id="loading-screen">
         <div style="width:32px; height:32px; border:3px solid #f3f3f3; border-top:3px solid #3b82f6; border-radius:50%; animation:spin 1s linear infinite; margin-bottom:12px;"></div>
-        <div id="loading-text" style="font-size:14px; font-weight:600;">기존 점포 데이터를 불러오는 중...</div>
+        <div id="loading-text" style="font-size:14px; font-weight:600;">창업 점포 데이터를 불러오는 중...</div>
     </div>
 
     <div id="toast">저장 중...</div>
@@ -87,7 +88,7 @@
     <div id="map"></div>
 
     <script>
-        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyCQZ1szZcBwagu38EVUvkTaUCYihREWoI7ybiJkcNl8BsPTXBM6ooOxaM-UdY_qU1k/exec'; 
+        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzS_CN-ZzcRiXvjyZjYS_cH2ohRo6akKRpMBC0aJAqgYnNb36__D85NP9L0S8QwY6yC/exec'; 
 
         var map;
         var markerClustering;
@@ -99,10 +100,8 @@
         var locationsMap = {}; 
         var groupedData = {}; 
 
-        const yearColors = {
-            "2026": "#991b1b", "2025": "#ef4444", "2024": "#f97316", "2023": "#fbbf24", "old": "#fde047"
-        };
-        const VISITED_COLOR = "#10B981";
+        const VISITED_COLOR = "#10b981";
+        const DEFAULT_COLOR = "#ef4444";
 
         function initMap() {
             map = new naver.maps.Map('map', {
@@ -120,6 +119,7 @@
                 
                 document.getElementById('loading-screen').style.display = 'none';
 
+                // 데이터 좌표별 그룹화
                 allData.forEach(loc => {
                     if(!loc.Lat || !loc.Lng) return;
                     const key = `${parseFloat(loc.Lat).toFixed(6)},${parseFloat(loc.Lng).toFixed(6)}`;
@@ -128,16 +128,20 @@
                     locationsMap[loc.ID] = loc;
                 });
 
+                // 마커 생성
                 Object.keys(groupedData).forEach(key => {
                     createMarkerForGroup(key, groupedData[key]);
                 });
 
+                // 클러스터링 적용
                 markerClustering = new MarkerClustering({
                     minClusterSize: 2, maxZoom: 17, map: map, markers: markers,
                     gridSize: 80,
                     icons: [
-                        makeClusterIcon("#fde047"), makeClusterIcon("#f97316"),
-                        makeClusterIcon("#ef4444"), makeClusterIcon("#991b1b")
+                        makeClusterIcon(DEFAULT_COLOR),
+                        makeClusterIcon("#f97316"),
+                        makeClusterIcon("#ef4444"),
+                        makeClusterIcon("#991b1b")
                     ],
                     stylingFunction: (clusterHtml, count) => { clusterHtml.querySelector('div').innerText = count; }
                 });
@@ -156,11 +160,15 @@
         function createMarkerForGroup(key, stores) {
             const [lat, lng] = key.split(',').map(Number);
             const representative = stores[0]; 
+            const isVisited = String(representative.IsVisited).toUpperCase() === 'TRUE';
             
             const marker = new naver.maps.Marker({
                 position: new naver.maps.LatLng(lat, lng),
                 map: map,
-                icon: { content: getIconHtml(representative), anchor: new naver.maps.Point(12, 30) }
+                icon: { 
+                    content: getIconHtml(isVisited, stores.length), 
+                    anchor: new naver.maps.Point(12, 30) 
+                }
             });
 
             marker.set('coordKey', key);
@@ -201,13 +209,14 @@
             const loc = locationsMap[id];
             const stores = groupedData[key];
             const isVisited = String(loc.IsVisited).toUpperCase() === 'TRUE';
-            const year = getYear(loc.Date);
-            const categoryContent = (loc.Category || '') + (year ? ` (${year})` : "");
             
             const formatDate = (ds) => { 
+                if (!ds) return "";
                 const d = new Date(ds); 
                 return isNaN(d.getTime()) ? ds : `${d.getFullYear()}년 ${String(d.getMonth() + 1).padStart(2, '0')}월 ${String(d.getDate()).padStart(2, '0')}일`;
             };
+
+            const categoryContent = (loc.Category || '') + (loc.Date ? ` (개업: ${formatDate(loc.Date)})` : "");
             let visitBtnText = isVisited ? (loc.VisitDate ? formatDate(loc.VisitDate) : '방문취소') : '방문완료';
 
             const backBtn = (stores && stores.length > 1) ? `<button class="btn-back" onclick="showStoreListByKey('${key}')">← 목록</button>` : '';
@@ -224,7 +233,7 @@
                         <button onclick="updateStatus('${loc.ID}', ${!isVisited}, '${key}')" class="iw-btn ${isVisited ? 'btn-cancel' : 'btn-visit'}">
                             ${visitBtnText}
                         </button>
-                        <a href="https://map.naver.com/v5/search/${encodeURIComponent(loc.Name)}" target="_blank" class="iw-btn btn-naver">네이버지도</a>
+                        <a href="https://map.naver.com/v5/search/${encodeURIComponent(loc.Name)}" target="_blank" class="iw-btn btn-naver">네이버</a>
                     </div>
                 </div>`;
         }
@@ -238,21 +247,18 @@
             showStoreList(key, marker);
         };
 
-        function getYear(dateString) {
-            if (!dateString) return null;
-            const d = new Date(dateString);
-            const yearMatch = dateString.toString().match(/\d{4}/);
-            return yearMatch ? yearMatch[0] : (isNaN(d.getTime()) ? null : String(d.getFullYear()));
-        }
+        function getIconHtml(isVisited, count) {
+            const color = isVisited ? VISITED_COLOR : DEFAULT_COLOR;
+            const badgeHtml = (count && count > 1) ? `
+                <circle cx="26" cy="6" r="7" fill="#333" stroke="white" stroke-width="1.5"/>
+                <text x="26" y="9" font-size="8" font-weight="900" text-anchor="middle" fill="white" font-family="Pretendard">${count}</text>
+            ` : '';
 
-        function getIconHtml(loc) {
-            const isVisited = String(loc.IsVisited).toUpperCase() === 'TRUE';
-            const year = getYear(loc.Date);
-            const color = isVisited ? VISITED_COLOR : (yearColors[year] || yearColors.old);
-            return `<div style="width:24px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
-                        <svg width="24" height="30" viewBox="0 0 32 40">
-                            <path d="M16 0C7.2 0 0 7.2 0 16c0 12 16 24 16 24s16-12 16-24c0-8.8-7.2-16-16-16z" fill="${color}"/>
-                            <circle cx="16" cy="16" r="6" fill="white"/>
+            return `<div style="width:36px;height:36px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+                        <svg width="36" height="36" viewBox="0 0 40 40">
+                            <path d="M16 8C10.5 8 6 12.5 6 18c0 7.5 10 15 10 15s10-7.5 10-15c0-5.5-4.5-10-10-10z" fill="${color}"/>
+                            <circle cx="16" cy="18" r="4" fill="white"/>
+                            ${badgeHtml}
                         </svg>
                     </div>`;
         }
@@ -265,7 +271,10 @@
             loc.VisitDate = nextStatus ? today : ""; 
 
             const marker = markers.find(m => m.get('coordKey') === key);
-            if (marker) marker.setIcon({ content: getIconHtml(loc), anchor: new naver.maps.Point(12, 30) });
+            if (marker) {
+                const count = groupedData[key].length;
+                marker.setIcon({ content: getIconHtml(nextStatus === true || nextStatus === 'TRUE', count), anchor: new naver.maps.Point(12, 30) });
+            }
             
             showStoreDetail(id, key); 
             showToast("변경사항을 저장 중입니다...");
