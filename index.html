@@ -11,18 +11,17 @@
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: 'Pretendard', sans-serif; background: #f8f9fa; overflow: hidden; }
         #map { width: 100%; height: 100vh; position: relative; }
 
-        /* 정보창 내부 스타일 커스텀 */
+        /* 정보창 디자인 (220px 고정 너비 적용) */
         .iw-container { 
             padding: 12px; 
-            width: 230px; /* 고정폭으로 안정감 부여 */
-            min-height: 120px; /* 최소 높이 설정 */
+            width: 220px; /* 요청하신 대로 220px로 고정했습니다 */
             background: white; 
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            box-sizing: border-box;
+            border-radius: 12px; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+            box-sizing: border-box; /* 패딩이 너비 안에 포함되도록 설정 */
         }
 
-        /* 1단계: 리스트 보기 */
+        /* 1단계: 리스트 보기 스타일 */
         .iw-list-title { font-size: 13px; font-weight: 800; color: #666; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
         .iw-list-item { 
             padding: 10px 5px; 
@@ -31,7 +30,6 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            transition: background 0.2s;
         }
         .iw-list-item:last-child { border-bottom: none; }
         .iw-list-item:hover { background: #f0f7ff; }
@@ -39,20 +37,20 @@
         .iw-list-item-badge { font-size: 10px; padding: 2px 6px; border-radius: 10px; background: #eee; color: #888; }
         .badge-visited { background: #e1f9f0; color: #10b981; }
 
-        /* 2단계: 상세 보기 */
+        /* 2단계: 상세 보기 스타일 */
         .iw-header { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
         .btn-back { 
-            background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 4px; padding: 4px 8px; 
-            font-size: 11px; cursor: pointer; color: #4b5563; font-weight: 600;
+            background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 4px; padding: 3px 7px; 
+            font-size: 10px; cursor: pointer; color: #4b5563; font-weight: 700;
             white-space: nowrap;
         }
-        .iw-title { font-size: 16px; font-weight: 700; color: #111; display: block; line-height: 1.3; }
-        .iw-category { font-size: 11px; color: #2563eb; font-weight: 600; margin-bottom: 6px; display: block; }
-        .iw-address { font-size: 11px; color: #71717a; margin-bottom: 15px; line-height: 1.5; display: block; min-height: 32px; }
+        .iw-title { font-size: 15px; font-weight: 700; color: #111; display: block; line-height: 1.3; }
+        .iw-category { font-size: 11px; color: #2563eb; font-weight: 600; margin-bottom: 4px; display: block; }
+        .iw-address { font-size: 11px; color: #71717a; margin-bottom: 12px; line-height: 1.4; display: block; }
         .iw-btn-group { display: flex; gap: 6px; }
         .iw-btn {
-            flex: 1; text-align: center; color: white; padding: 9px 0;
-            text-decoration: none; font-size: 11px; border-radius: 6px;
+            flex: 1; text-align: center; color: white; padding: 7px 0;
+            text-decoration: none; font-size: 10.5px; border-radius: 6px;
             font-weight: 600; cursor: pointer; border: none;
         }
         .btn-visit { background-color: #3b82f6; } 
@@ -170,12 +168,10 @@
             });
         }
 
-        // 1단계: 마커 클릭 시 동작 (리스트 또는 단일 상세)
         function showStoreList(key, marker) {
             const stores = groupedData[key];
             
             if (stores.length === 1) {
-                // [수정] 단일 점포일 때 컨텐츠 설정 후 반드시 open 호출
                 infowindow.setContent(getStoreDetailHtml(stores[0].ID, key));
                 infowindow.open(map, marker);
                 return;
@@ -198,7 +194,6 @@
             infowindow.open(map, marker);
         }
 
-        // 상세 정보 HTML 생성 로직 분리 (일관된 디자인 유지)
         function getStoreDetailHtml(id, key) {
             const loc = locationsMap[id];
             const stores = groupedData[key];
@@ -231,7 +226,6 @@
                 </div>`;
         }
 
-        // 2단계: 리스트에서 항목 클릭 시 상세 정보창 전환
         window.showStoreDetail = function(id, key) {
             infowindow.setContent(getStoreDetailHtml(id, key));
         };
