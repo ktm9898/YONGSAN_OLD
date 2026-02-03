@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>용산구 점포 지도 (최근 3년 강조)</title>
+    <title>용산구 점포 지도</title>
     <!-- 네이버 지도 API -->
     <script type="text/javascript" src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=u5mtazxcnw"></script>
     <style>
@@ -72,14 +72,15 @@
         var markersMap = {}; 
         var locationsMap = {}; 
 
-        // 색상 설정 (최근 3년 강조)
+        // 색상 설정 (노랑 -> 빨강 그라데이션)
         const yearColors = {
-            "2026": "#E11D48", // 로즈 레드 (올해)
-            "2025": "#F59E0B", // 오렌지 (작년)
-            "2024": "#3B82F6", // 선명한 블루 (재작년)
-            "old": "#475569"   // 그 이전 (차분한 슬레이트 블루)
+            "2026": "#991b1b", // 진한 빨강 (미래/최근)
+            "2025": "#ef4444", // 빨강 (기준점)
+            "2024": "#f97316", // 주황
+            "2023": "#fbbf24", // 황금색/진한 노랑
+            "old": "#fde047"   // 2022년 이전 (노랑)
         };
-        const VISITED_COLOR = "#10B981"; // 방문완료 (초록색)
+        const VISITED_COLOR = "#10B981"; // 방문완료 (초록색 유지)
 
         function initMap() {
             map = new naver.maps.Map('map', {
@@ -88,7 +89,7 @@
             });
             naver.maps.Event.addListener(map, "click", () => infowindow.close());
             
-            // URL 설정 여부 체크 (플레이스홀더 문구가 그대로 있으면 오류 표시)
+            // URL 설정 여부 체크
             if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes('여기에')) {
                 document.getElementById('loading-text').innerText = "오류: GOOGLE_SCRIPT_URL을 설정해 주세요.";
                 return;
@@ -134,6 +135,7 @@
                 color = VISITED_COLOR;
             } else {
                 const year = getYear(loc.Date);
+                // 2023~2026년은 개별 색상, 그 이전은 old(노랑) 색상 사용
                 color = yearColors[year] || yearColors.old;
             }
 
