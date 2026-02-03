@@ -154,8 +154,21 @@
             };
         }
 
-        // 그룹 내 연도가 가장 높은(최근) 점포를 찾는 함수
+        // 핵심 수정: 그룹 내 미방문 점포 중 가장 최근 연도인 점포를 찾는 함수
         function getGroupRepresentative(stores) {
+            // 1. 아직 방문하지 않은 점포들만 필터링
+            const unvisitedStores = stores.filter(s => String(s.IsVisited).toUpperCase() !== 'TRUE');
+
+            // 2. 미방문 점포가 있다면 그들 중에서 가장 연도가 높은 것을 선택
+            if (unvisitedStores.length > 0) {
+                return unvisitedStores.reduce((prev, curr) => {
+                    const prevYear = parseInt(getYear(prev.Date) || 0);
+                    const currYear = parseInt(getYear(curr.Date) || 0);
+                    return currYear >= prevYear ? curr : prev;
+                });
+            }
+
+            // 3. 미방문 점포가 하나도 없다면(모두 방문했다면) 전체 중 가장 연도가 높은 것 선택
             return stores.reduce((prev, curr) => {
                 const prevYear = parseInt(getYear(prev.Date) || 0);
                 const currYear = parseInt(getYear(curr.Date) || 0);
@@ -165,14 +178,13 @@
 
         // 그룹 내 모든 점포가 방문 완료되었는지 확인
         function isGroupAllVisited(stores) {
-            const hasUnvisited = stores.some(s => String(s.IsVisited).toUpperCase() !== 'TRUE');
-            return !hasUnvisited;
+            return stores.every(s => String(s.IsVisited).toUpperCase() === 'TRUE');
         }
 
         function createMarkerForGroup(key, stores) {
             const [lat, lng] = key.split(',').map(Number);
             const allVisited = isGroupAllVisited(stores);
-            const representative = getGroupRepresentative(stores);
+            const representative = getGroupRepresentative(stores); // 미방문 우선순위 대표 점포
             
             const marker = new naver.maps.Marker({
                 position: new naver.maps.LatLng(lat, lng),
@@ -225,7 +237,6 @@
             const categoryContent = (loc.Category || '') + (year ? ` (${year})` : "");
             
             const formatDate = (ds) => { 
-                if (!ds) return "";
                 const d = new Date(ds); 
                 return isNaN(d.getTime()) ? ds : `${d.getFullYear()}년 ${String(d.getMonth() + 1).padStart(2, '0')}월 ${String(d.getDate()).padStart(2, '0')}일`;
             };
@@ -268,7 +279,7 @@
 
         function getIconHtml(loc, count, allVisited) {
             const year = getYear(loc.Date);
-            // 모두 방문했을 때만 초록색, 하나라도 미방문이면 해당 대표 점포 연도 색상
+            // 모두 방문했을 때만 초록색, 하나라도 미방문이면 필터링된 대표 점포 연도 색상
             const color = allVisited ? VISITED_COLOR : (yearColors[year] || yearColors.old);
             
             // 배지: 흰색 배경에 검은색 글씨
@@ -299,7 +310,7 @@
             if (marker) {
                 const stores = groupedData[key];
                 const allVisitedNow = isGroupAllVisited(stores);
-                const representative = getGroupRepresentative(stores);
+                const representative = getGroupRepresentative(stores); // 미방문 중 최신 순으로 다시 계산
                 marker.setIcon({ content: getIconHtml(representative, stores.length, allVisitedNow), anchor: new naver.maps.Point(16, 33) });
             }
             
