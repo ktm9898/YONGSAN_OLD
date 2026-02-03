@@ -37,16 +37,16 @@
         .iw-list-item-badge { font-size: 10px; padding: 2px 6px; border-radius: 10px; background: #eee; color: #888; }
         .badge-visited { background: #e1f9f0; color: #10b981; }
 
-        /* 2단계: 상세 보기 스타일 (기존 디자인 복사 및 미세 조정) */
-        .iw-header { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 0px; } /* 마진 제거 */
+        /* 2단계: 상세 보기 스타일 (조밀한 간격 적용) */
+        .iw-header { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 0px; }
         .btn-back { 
-            background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 4px; padding: 2px 6px; 
+            background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 4px; padding: 3px 7px; 
             font-size: 9px; cursor: pointer; color: #4b5563; font-weight: 700;
             white-space: nowrap;
         }
-        .iw-title { font-size: 15px; font-weight: 700; color: #111; margin-bottom: 2px; display: block; line-height: 1.3; } /* 마진 제거 및 줄간격 조정 */
+        .iw-title { font-size: 15px; font-weight: 700; color: #111; margin-bottom: 2px; display: block; line-height: 1.3; }
         .iw-category { font-size: 11px; color: #2563eb; font-weight: 600; margin-bottom: 4px; display: block; }
-        .iw-address { font-size: 11px; color: #71717a; margin-bottom: 8px; line-height: 1.4; display: block; }
+        .iw-address { font-size: 11px; color: #71717a; margin-bottom: 12px; line-height: 1.4; display: block; }
         
         .iw-btn-group { display: flex; gap: 6px; }
         .iw-btn {
@@ -87,7 +87,7 @@
     <div id="map"></div>
 
     <script>
-        // 기존 점포용 URL로 다시 정확히 맞췄습니다. (AKfycby... 주소)
+        // 기존 점포용 URL 보존 (AKfycby... 주소)
         const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyCQZ1szZcBwagu38EVUvkTaUCYihREWoI7ybiJkcNl8BsPTXBM6ooOxaM-UdY_qU1k/exec'; 
 
         var map;
@@ -103,7 +103,7 @@
         const yearColors = {
             "2026": "#991b1b", "2025": "#ef4444", "2024": "#f97316", "2023": "#fbbf24", "old": "#fde047"
         };
-        const VISITED_COLOR = "#10B981";
+        const VISITED_COLOR = "#10b981";
 
         function initMap() {
             map = new naver.maps.Map('map', {
@@ -154,15 +154,31 @@
             };
         }
 
+        // 그룹 내 연도가 가장 높은(최근) 점포를 찾는 함수
+        function getGroupRepresentative(stores) {
+            return stores.reduce((prev, curr) => {
+                const prevYear = parseInt(getYear(prev.Date) || 0);
+                const currYear = parseInt(getYear(curr.Date) || 0);
+                return currYear >= prevYear ? curr : prev;
+            });
+        }
+
+        // 그룹 내 모든 점포가 방문 완료되었는지 확인
+        function isGroupAllVisited(stores) {
+            const hasUnvisited = stores.some(s => String(s.IsVisited).toUpperCase() !== 'TRUE');
+            return !hasUnvisited;
+        }
+
         function createMarkerForGroup(key, stores) {
             const [lat, lng] = key.split(',').map(Number);
-            const representative = stores[0]; 
+            const allVisited = isGroupAllVisited(stores);
+            const representative = getGroupRepresentative(stores);
             
             const marker = new naver.maps.Marker({
                 position: new naver.maps.LatLng(lat, lng),
                 map: map,
                 icon: { 
-                    content: getIconHtml(representative, stores.length), 
+                    content: getIconHtml(representative, stores.length, allVisited), 
                     anchor: new naver.maps.Point(16, 33) 
                 }
             });
@@ -209,6 +225,7 @@
             const categoryContent = (loc.Category || '') + (year ? ` (${year})` : "");
             
             const formatDate = (ds) => { 
+                if (!ds) return "";
                 const d = new Date(ds); 
                 return isNaN(d.getTime()) ? ds : `${d.getFullYear()}년 ${String(d.getMonth() + 1).padStart(2, '0')}월 ${String(d.getDate()).padStart(2, '0')}일`;
             };
@@ -249,12 +266,12 @@
             return yearMatch ? yearMatch[0] : (isNaN(d.getTime()) ? null : String(d.getFullYear()));
         }
 
-        function getIconHtml(loc, count) {
-            const isVisited = String(loc.IsVisited).toUpperCase() === 'TRUE';
+        function getIconHtml(loc, count, allVisited) {
             const year = getYear(loc.Date);
-            const color = isVisited ? VISITED_COLOR : (yearColors[year] || yearColors.old);
+            // 모두 방문했을 때만 초록색, 하나라도 미방문이면 해당 대표 점포 연도 색상
+            const color = allVisited ? VISITED_COLOR : (yearColors[year] || yearColors.old);
             
-            // 배지 디자인 수정: 흰색 배경에 검은색 글씨
+            // 배지: 흰색 배경에 검은색 글씨
             const badgeHtml = (count && count > 1) ? `
                 <circle cx="28" cy="8" r="7" fill="white" stroke="#333" stroke-width="1.5"/>
                 <text x="28" y="11" font-size="8" font-weight="900" text-anchor="middle" fill="#333" font-family="Pretendard">${count}</text>
@@ -273,13 +290,17 @@
             const loc = locationsMap[id];
             const now = new Date();
             const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            
             loc.IsVisited = nextStatus ? 'TRUE' : 'FALSE'; 
             loc.VisitDate = nextStatus ? today : ""; 
 
+            // 마커 아이콘 실시간 업데이트
             const marker = markers.find(m => m.get('coordKey') === key);
             if (marker) {
-                const count = groupedData[key].length;
-                marker.setIcon({ content: getIconHtml(loc, count), anchor: new naver.maps.Point(16, 33) });
+                const stores = groupedData[key];
+                const allVisitedNow = isGroupAllVisited(stores);
+                const representative = getGroupRepresentative(stores);
+                marker.setIcon({ content: getIconHtml(representative, stores.length, allVisitedNow), anchor: new naver.maps.Point(16, 33) });
             }
             
             showStoreDetail(id, key); 
