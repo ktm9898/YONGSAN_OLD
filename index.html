@@ -4,32 +4,54 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>용산구 점포 지도</title>
-    <!-- 네이버 지도 API -->
+    <!-- 네이버 지도 API & 클러스터링 라이브러리 -->
     <script type="text/javascript" src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=u5mtazxcnw"></script>
+    <script type="text/javascript" src="https://navermaps.github.io/maps.js.ncp/docs/js/marker-clusterer.js"></script>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: 'Pretendard', sans-serif; background: #f8f9fa; }
-        #map { width: 100%; height: 100vh; }
-        
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: 'Pretendard', sans-serif; background: #f8f9fa; overflow: hidden; }
+        #map { width: 100%; height: 100vh; position: relative; }
+
+        /* 정보창 내부 스타일 커스텀 */
         .iw-container { 
-            padding: 12px; 
-            min-width: 180px; 
-            max-width: 220px;
+            padding: 10px; 
+            min-width: 200px; 
+            max-width: 250px; 
             background: white; 
-            border-radius: 12px; 
-            box-shadow: 0 4px 20px rgba(0,0,0,0.12);
-            border: 1px solid #f0f0f0;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
-        .iw-title { font-size: 15px; font-weight: 700; color: #111; margin-bottom: 2px; display: block; }
+
+        /* 1단계: 리스트 보기 */
+        .iw-list-title { font-size: 13px; font-weight: 800; color: #666; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .iw-list-item { 
+            padding: 8px 5px; 
+            cursor: pointer; 
+            border-bottom: 1px solid #f9f9f9;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.2s;
+        }
+        .iw-list-item:hover { background: #f0f7ff; }
+        .iw-list-item-name { font-size: 14px; font-weight: 600; color: #333; }
+        .iw-list-item-badge { font-size: 10px; padding: 2px 6px; border-radius: 10px; background: #eee; color: #888; }
+        .badge-visited { background: #e1f9f0; color: #10b981; }
+
+        /* 2단계: 상세 보기 */
+        .iw-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .btn-back { 
+            background: none; border: 1px solid #ddd; border-radius: 4px; padding: 2px 6px; 
+            font-size: 10px; cursor: pointer; color: #666; 
+        }
+        .iw-title { font-size: 16px; font-weight: 700; color: #111; display: block; }
         .iw-category { font-size: 11px; color: #2563eb; font-weight: 600; margin-bottom: 4px; display: block; }
         .iw-address { font-size: 11px; color: #71717a; margin-bottom: 12px; line-height: 1.4; display: block; }
         .iw-btn-group { display: flex; gap: 6px; }
         .iw-btn {
             flex: 1; text-align: center; color: white; padding: 7px 0;
             text-decoration: none; font-size: 10.5px; border-radius: 6px;
-            font-weight: 600; cursor: pointer; border: none; transition: opacity 0.2s;
-            white-space: nowrap;
+            font-weight: 600; cursor: pointer; border: none;
         }
-        .iw-btn:active { opacity: 0.8; }
         .btn-visit { background-color: #3b82f6; } 
         .btn-cancel { background-color: #f59e0b; } 
         .btn-naver { background-color: #03c75a; } 
@@ -38,10 +60,7 @@
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(255,255,255,0.95); z-index: 10000;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            font-size: 14px; font-weight: 600; color: #333;
-            transition: opacity 0.3s;
         }
-
         #toast {
             position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
             background: rgba(0,0,0,0.7); color: white; padding: 10px 20px;
@@ -53,34 +72,33 @@
     </style>
 </head>
 <body>
+
     <div id="loading-screen">
         <div style="width:32px; height:32px; border:3px solid #f3f3f3; border-top:3px solid #3b82f6; border-radius:50%; animation:spin 1s linear infinite; margin-bottom:12px;"></div>
-        <div id="loading-text">기존 점포 데이터를 불러오는 중...</div>
+        <div id="loading-text" style="font-size:14px; font-weight:600;">데이터를 불러오고 있습니다...</div>
     </div>
+
     <div id="toast">저장 중...</div>
+
     <div id="map"></div>
 
     <script>
-        // ⚠️ 주의: 아래 주소를 사용자님의 실제 구글 배포 URL로 반드시 변경해야 합니다!
         const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyCQZ1szZcBwagu38EVUvkTaUCYihREWoI7ybiJkcNl8BsPTXBM6ooOxaM-UdY_qU1k/exec'; 
 
         var map;
+        var markerClustering;
         var infowindow = new naver.maps.InfoWindow({
             borderWidth: 0, backgroundColor: "transparent", disableAnchor: true, pixelOffset: new naver.maps.Point(0, -10)
         });
 
-        var markersMap = {}; 
+        var markers = []; 
         var locationsMap = {}; 
+        var groupedData = {}; // 좌표별 그룹화 데이터
 
-        // 색상 설정 (노랑 -> 빨강 그라데이션)
         const yearColors = {
-            "2026": "#991b1b", // 진한 빨강 (미래/최근)
-            "2025": "#ef4444", // 빨강 (기준점)
-            "2024": "#f97316", // 주황
-            "2023": "#fbbf24", // 황금색/진한 노랑
-            "old": "#fde047"   // 2022년 이전 (노랑)
+            "2026": "#991b1b", "2025": "#ef4444", "2024": "#f97316", "2023": "#fbbf24", "old": "#fde047"
         };
-        const VISITED_COLOR = "#10B981"; // 방문완료 (초록색 유지)
+        const VISITED_COLOR = "#10B981";
 
         function initMap() {
             map = new naver.maps.Map('map', {
@@ -88,57 +106,152 @@
                 zoom: 14, logoControl: false, mapDataControl: false
             });
             naver.maps.Event.addListener(map, "click", () => infowindow.close());
-            
-            // URL 설정 여부 체크
-            if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes('여기에')) {
-                document.getElementById('loading-text').innerText = "오류: GOOGLE_SCRIPT_URL을 설정해 주세요.";
-                return;
-            }
             loadData();
         }
 
         async function loadData() {
             try {
                 const response = await fetch(GOOGLE_SCRIPT_URL);
-                if (!response.ok) throw new Error('Network response was not ok');
-                const locations = await response.json();
+                const allData = await response.json();
                 
-                const loadingScreen = document.getElementById('loading-screen');
-                loadingScreen.style.opacity = '0';
-                setTimeout(() => loadingScreen.style.display = 'none', 300);
+                document.getElementById('loading-screen').style.display = 'none';
 
-                locations.forEach(loc => {
-                    if(loc.Lat && loc.Lng) createMarker(loc);
+                // 1. 데이터 좌표별 그룹화
+                allData.forEach(loc => {
+                    if(!loc.Lat || !loc.Lng) return;
+                    const key = `${parseFloat(loc.Lat).toFixed(6)},${parseFloat(loc.Lng).toFixed(6)}`;
+                    if(!groupedData[key]) groupedData[key] = [];
+                    groupedData[key].push(loc);
+                    locationsMap[loc.ID] = loc;
+                });
+
+                // 2. 그룹당 마커 하나씩 생성
+                Object.keys(groupedData).forEach(key => {
+                    createMarkerForGroup(key, groupedData[key]);
+                });
+
+                // 3. 클러스터링 적용
+                markerClustering = new MarkerClustering({
+                    minClusterSize: 2, maxZoom: 17, map: map, markers: markers,
+                    gridSize: 80,
+                    icons: [
+                        makeClusterIcon("#fde047"), makeClusterIcon("#f97316"),
+                        makeClusterIcon("#ef4444"), makeClusterIcon("#991b1b")
+                    ],
+                    stylingFunction: (clusterHtml, count) => { clusterHtml.querySelector('div').innerText = count; }
                 });
             } catch (e) {
-                console.error("데이터 로드 실패:", e);
-                document.getElementById('loading-text').innerText = "데이터 로드 실패: URL과 권한 설정을 확인하세요.";
+                document.getElementById('loading-text').innerText = "로드 실패: URL을 확인하세요.";
             }
         }
 
-        // 날짜 데이터에서 연도 4자리 추출
+        function makeClusterIcon(color) {
+            return {
+                content: `<div style="cursor:pointer;width:35px;height:35px;line-height:37px;font-size:11px;color:white;text-align:center;font-weight:bold;background:${color};border:2.5px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.2);"></div>`,
+                size: N.Size(35, 35), anchor: N.Point(17, 17)
+            };
+        }
+
+        function createMarkerForGroup(key, stores) {
+            const [lat, lng] = key.split(',').map(Number);
+            
+            // 그룹 내에서 가장 최근 연도나 방문 여부를 기준으로 마커 색상 결정 (대표 마커)
+            const representative = stores[0]; 
+            
+            const marker = new naver.maps.Marker({
+                position: new naver.maps.LatLng(lat, lng),
+                map: map,
+                icon: { content: getIconHtml(representative), anchor: new naver.maps.Point(12, 30) }
+            });
+
+            marker.set('coordKey', key);
+            markers.push(marker);
+
+            naver.maps.Event.addListener(marker, "click", () => {
+                showStoreList(key, marker);
+            });
+        }
+
+        // 1단계: 점포 리스트 보여주기
+        function showStoreList(key, marker) {
+            const stores = groupedData[key];
+            
+            // 만약 해당 위치에 점포가 1개뿐이라면 바로 상세페이지로
+            if (stores.length === 1) {
+                showStoreDetail(stores[0].ID, key, marker);
+                return;
+            }
+
+            let listHtml = `<div class="iw-container">
+                <div class="iw-list-title">이 위치에 ${stores.length}개의 점포가 있습니다</div>`;
+            
+            stores.forEach(loc => {
+                const isVisited = String(loc.IsVisited).toUpperCase() === 'TRUE';
+                listHtml += `
+                    <div class="iw-list-item" onclick="showStoreDetail('${loc.ID}', '${key}')">
+                        <span class="iw-list-item-name">${loc.Name}</span>
+                        <span class="iw-list-item-badge ${isVisited ? 'badge-visited' : ''}">${isVisited ? '방문완료' : (loc.Category || '점포')}</span>
+                    </div>`;
+            });
+
+            listHtml += `</div>`;
+            infowindow.setContent(listHtml);
+            infowindow.open(map, marker);
+        }
+
+        // 2단계: 점포 상세 정보 보여주기
+        window.showStoreDetail = function(id, key) {
+            const loc = locationsMap[id];
+            const stores = groupedData[key];
+            const isVisited = String(loc.IsVisited).toUpperCase() === 'TRUE';
+            const year = getYear(loc.Date);
+            const categoryContent = (loc.Category || '') + (year ? ` (${year})` : "");
+            
+            const formatDate = (ds) => { 
+                const d = new Date(ds); 
+                return isNaN(d.getTime()) ? ds : `${d.getFullYear()}년 ${String(d.getMonth() + 1).padStart(2, '0')}월 ${String(d.getDate()).padStart(2, '0')}일`;
+            };
+            let visitBtnText = isVisited ? (loc.VisitDate ? formatDate(loc.VisitDate) : '방문취소') : '방문완료';
+
+            // 뒤로가기 버튼은 여러 개일 때만 표시
+            const backBtn = stores.length > 1 ? `<button class="btn-back" onclick="showStoreListByKey('${key}')">← 목록</button>` : '';
+
+            const detailHtml = `
+                <div class="iw-container">
+                    <div class="iw-header">
+                        ${backBtn}
+                        <span class="iw-title">${loc.Name}</span>
+                    </div>
+                    <span class="iw-category">${categoryContent}</span>
+                    <span class="iw-address">${loc.Address || '주소 정보 없음'}</span>
+                    <div class="iw-btn-group">
+                        <button onclick="updateStatus('${loc.ID}', ${!isVisited}, '${key}')" class="iw-btn ${isVisited ? 'btn-cancel' : 'btn-visit'}">
+                            ${visitBtnText}
+                        </button>
+                        <a href="https://map.naver.com/v5/search/${encodeURIComponent(loc.Name)}" target="_blank" class="iw-btn btn-naver">네이버지도</a>
+                    </div>
+                </div>`;
+            
+            infowindow.setContent(detailHtml);
+        };
+
+        // 전역에서 접근 가능하도록 설정
+        window.showStoreListByKey = function(key) {
+            const marker = markers.find(m => m.get('coordKey') === key);
+            showStoreList(key, marker);
+        };
+
         function getYear(dateString) {
             if (!dateString) return null;
             const d = new Date(dateString);
-            if (isNaN(d.getTime())) {
-                const yearMatch = dateString.toString().match(/\d{4}/);
-                return yearMatch ? yearMatch[0] : null;
-            }
-            return String(d.getFullYear());
+            const yearMatch = dateString.toString().match(/\d{4}/);
+            return yearMatch ? yearMatch[0] : (isNaN(d.getTime()) ? null : String(d.getFullYear()));
         }
 
         function getIconHtml(loc) {
             const isVisited = String(loc.IsVisited).toUpperCase() === 'TRUE';
-            let color = yearColors.old;
-
-            if (isVisited) {
-                color = VISITED_COLOR;
-            } else {
-                const year = getYear(loc.Date);
-                // 2023~2026년은 개별 색상, 그 이전은 old(노랑) 색상 사용
-                color = yearColors[year] || yearColors.old;
-            }
-
+            const year = getYear(loc.Date);
+            const color = isVisited ? VISITED_COLOR : (yearColors[year] || yearColors.old);
             return `<div style="width:24px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
                         <svg width="24" height="30" viewBox="0 0 32 40">
                             <path d="M16 0C7.2 0 0 7.2 0 16c0 12 16 24 16 24s16-12 16-24c0-8.8-7.2-16-16-16z" fill="${color}"/>
@@ -147,59 +260,18 @@
                     </div>`;
         }
 
-        function getInfoWindowHtml(loc) {
-            const isVisited = String(loc.IsVisited).toUpperCase() === 'TRUE';
-            const year = getYear(loc.Date);
-            let yearTag = year ? ` (${year})` : "";
-            const categoryContent = (loc.Category || '') + yearTag;
-            const categoryTag = categoryContent ? `<span class="iw-category">${categoryContent}</span>` : '';
-            
-            const formatDate = (dateString) => {
-                if (!dateString) return "";
-                const d = new Date(dateString);
-                return isNaN(d.getTime()) ? dateString : `${d.getFullYear()}년 ${String(d.getMonth() + 1).padStart(2, '0')}월 ${String(d.getDate()).padStart(2, '0')}일`;
-            };
-
-            let visitBtnText = isVisited ? (loc.VisitDate ? formatDate(loc.VisitDate) : '방문취소') : '방문완료';
-
-            return `
-                <div class="iw-container">
-                    <span class="iw-title">${loc.Name}</span>
-                    ${categoryTag}
-                    <span class="iw-address">${loc.Address || '주소 정보 없음'}</span>
-                    <div class="iw-btn-group">
-                        <button onclick="updateStatus('${loc.ID}', ${!isVisited})" class="iw-btn ${isVisited ? 'btn-cancel' : 'btn-visit'}">
-                            ${visitBtnText}
-                        </button>
-                        <a href="https://map.naver.com/v5/search/${encodeURIComponent(loc.Name)}" target="_blank" class="iw-btn btn-naver">네이버지도</a>
-                    </div>
-                </div>`;
-        }
-
-        function createMarker(loc) {
-            locationsMap[loc.ID] = loc;
-            var marker = new naver.maps.Marker({
-                position: new naver.maps.LatLng(loc.Lat, loc.Lng),
-                map: map,
-                icon: { content: getIconHtml(loc), anchor: new naver.maps.Point(12, 30) }
-            });
-            markersMap[loc.ID] = marker;
-            naver.maps.Event.addListener(marker, "click", () => {
-                infowindow.setContent(getInfoWindowHtml(locationsMap[loc.ID]));
-                infowindow.open(map, marker);
-            });
-        }
-
-        async function updateStatus(id, nextStatus) {
+        async function updateStatus(id, nextStatus, key) {
             const loc = locationsMap[id];
             const now = new Date();
             const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-
             loc.IsVisited = nextStatus ? 'TRUE' : 'FALSE'; 
             loc.VisitDate = nextStatus ? today : ""; 
 
-            markersMap[id].setIcon({ content: getIconHtml(loc), anchor: new naver.maps.Point(12, 30) });
-            infowindow.setContent(getInfoWindowHtml(loc));
+            // 마커 아이콘 색상도 업데이트 (그룹의 첫 번째 점포 기준일 수 있으므로 대표성 유지)
+            const marker = markers.find(m => m.get('coordKey') === key);
+            if (marker) marker.setIcon({ content: getIconHtml(loc), anchor: new naver.maps.Point(12, 30) });
+            
+            showStoreDetail(id, key); // 상세 정보창 갱신
             showToast("변경사항을 저장 중입니다...");
 
             try {
@@ -208,9 +280,7 @@
                     body: JSON.stringify({ id: id, isVisited: nextStatus, visitDate: loc.VisitDate }) 
                 });
                 showToast("저장이 완료되었습니다!");
-            } catch (e) {
-                showToast("저장에 실패했습니다.");
-            }
+            } catch (e) { showToast("저장에 실패했습니다."); }
         }
 
         function showToast(message) {
