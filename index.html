@@ -23,6 +23,17 @@
 
         /* 1단계: 리스트 보기 스타일 */
         .iw-list-title { font-size: 13px; font-weight: 800; color: #666; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        
+        /* [개선] 목록 스크롤 영역 스타일 추가 */
+        .iw-list-scroll {
+            max-height: 280px; /* 휴대폰 화면을 고려한 적절한 높이 */
+            overflow-y: auto;  /* 세로 스크롤 활성화 */
+            -webkit-overflow-scrolling: touch; /* 모바일 부드러운 스크롤 */
+        }
+        /* 스크롤바 디자인 (깔끔하게) */
+        .iw-list-scroll::-webkit-scrollbar { width: 4px; }
+        .iw-list-scroll::-webkit-scrollbar-thumb { background: #ddd; border-radius: 10px; }
+
         .iw-list-item { 
             padding: 10px 5px; 
             cursor: pointer; 
@@ -154,12 +165,8 @@
             };
         }
 
-        // 핵심 수정: 그룹 내 미방문 점포 중 가장 최근 연도인 점포를 찾는 함수
         function getGroupRepresentative(stores) {
-            // 1. 아직 방문하지 않은 점포들만 필터링
             const unvisitedStores = stores.filter(s => String(s.IsVisited).toUpperCase() !== 'TRUE');
-
-            // 2. 미방문 점포가 있다면 그들 중에서 가장 연도가 높은 것을 선택
             if (unvisitedStores.length > 0) {
                 return unvisitedStores.reduce((prev, curr) => {
                     const prevYear = parseInt(getYear(prev.Date) || 0);
@@ -167,8 +174,6 @@
                     return currYear >= prevYear ? curr : prev;
                 });
             }
-
-            // 3. 미방문 점포가 하나도 없다면(모두 방문했다면) 전체 중 가장 연도가 높은 것 선택
             return stores.reduce((prev, curr) => {
                 const prevYear = parseInt(getYear(prev.Date) || 0);
                 const currYear = parseInt(getYear(curr.Date) || 0);
@@ -176,7 +181,6 @@
             });
         }
 
-        // 그룹 내 모든 점포가 방문 완료되었는지 확인
         function isGroupAllVisited(stores) {
             return stores.every(s => String(s.IsVisited).toUpperCase() === 'TRUE');
         }
@@ -184,7 +188,7 @@
         function createMarkerForGroup(key, stores) {
             const [lat, lng] = key.split(',').map(Number);
             const allVisited = isGroupAllVisited(stores);
-            const representative = getGroupRepresentative(stores); // 미방문 우선순위 대표 점포
+            const representative = getGroupRepresentative(stores); 
             
             const marker = new naver.maps.Marker({
                 position: new naver.maps.LatLng(lat, lng),
@@ -213,7 +217,8 @@
             }
 
             let listHtml = `<div class="iw-container">
-                <div class="iw-list-title">이 위치에 ${stores.length}개의 점포가 있습니다</div>`;
+                <div class="iw-list-title">이 위치에 ${stores.length}개의 점포가 있습니다</div>
+                <div class="iw-list-scroll">`; // [개선] 스크롤 영역 감싸기 시작
             
             stores.forEach(loc => {
                 const isVisited = String(loc.IsVisited).toUpperCase() === 'TRUE';
@@ -224,7 +229,7 @@
                     </div>`;
             });
 
-            listHtml += `</div>`;
+            listHtml += `</div></div>`; // [개선] 스크롤 영역 감싸기 종료
             infowindow.setContent(listHtml);
             infowindow.open(map, marker);
         }
@@ -237,6 +242,7 @@
             const categoryContent = (loc.Category || '') + (year ? ` (${year})` : "");
             
             const formatDate = (ds) => { 
+                if (!ds) return "";
                 const d = new Date(ds); 
                 return isNaN(d.getTime()) ? ds : `${d.getFullYear()}년 ${String(d.getMonth() + 1).padStart(2, '0')}월 ${String(d.getDate()).padStart(2, '0')}일`;
             };
@@ -279,10 +285,8 @@
 
         function getIconHtml(loc, count, allVisited) {
             const year = getYear(loc.Date);
-            // 모두 방문했을 때만 초록색, 하나라도 미방문이면 필터링된 대표 점포 연도 색상
             const color = allVisited ? VISITED_COLOR : (yearColors[year] || yearColors.old);
             
-            // 배지: 흰색 배경에 검은색 글씨
             const badgeHtml = (count && count > 1) ? `
                 <circle cx="28" cy="8" r="7" fill="white" stroke="#333" stroke-width="1.5"/>
                 <text x="28" y="11" font-size="8" font-weight="900" text-anchor="middle" fill="#333" font-family="Pretendard">${count}</text>
@@ -305,12 +309,11 @@
             loc.IsVisited = nextStatus ? 'TRUE' : 'FALSE'; 
             loc.VisitDate = nextStatus ? today : ""; 
 
-            // 마커 아이콘 실시간 업데이트
             const marker = markers.find(m => m.get('coordKey') === key);
             if (marker) {
                 const stores = groupedData[key];
                 const allVisitedNow = isGroupAllVisited(stores);
-                const representative = getGroupRepresentative(stores); // 미방문 중 최신 순으로 다시 계산
+                const representative = getGroupRepresentative(stores);
                 marker.setIcon({ content: getIconHtml(representative, stores.length, allVisitedNow), anchor: new naver.maps.Point(16, 33) });
             }
             
